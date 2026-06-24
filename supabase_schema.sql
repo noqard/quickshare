@@ -22,3 +22,25 @@ create policy "Users can insert their own links"
 create policy "Users can update their own links"
   on links for update
   using (auth.uid() = user_id);
+
+-- Lets anyone resolve a short code and increment its click count,
+-- without exposing the rest of the `links` table to public reads.
+create or replace function get_long_url_and_increment(p_code text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_long_url text;
+begin
+  update links
+  set click_count = click_count + 1
+  where code = p_code
+  returning long_url into v_long_url;
+
+  return v_long_url;
+end;
+$$;
+
+grant execute on function get_long_url_and_increment(text) to anon, authenticated;
