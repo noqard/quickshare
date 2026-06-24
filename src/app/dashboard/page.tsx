@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CreateLinkForm from "@/components/CreateLinkForm";
+import UpgradeButton from "@/components/UpgradeButton";
+
+const FREE_TIER_LINK_LIMIT = 5;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -9,6 +12,8 @@ export default async function DashboardPage() {
   if (userError || !userData?.user) {
     redirect("/login");
   }
+
+  const isPro = userData.user.user_metadata?.is_pro === true;
 
   const { data: links } = await supabase
     .from("links")
@@ -20,6 +25,13 @@ export default async function DashboardPage() {
       <div className="flex w-full max-w-md flex-col items-center gap-2">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="text-sm text-gray-600">Signed in as {userData.user.email}</p>
+        <div className="flex items-center gap-3">
+          <span className="text-sm">
+            Plan: <strong>{isPro ? "Pro" : "Free"}</strong>
+            {!isPro && ` (${links?.length ?? 0}/${FREE_TIER_LINK_LIMIT} links used)`}
+          </span>
+          {!isPro && <UpgradeButton />}
+        </div>
       </div>
 
       <CreateLinkForm />

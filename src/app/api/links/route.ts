@@ -6,6 +6,8 @@ function randomCode(length = 6) {
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
+const FREE_TIER_LINK_LIMIT = 5;
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -18,6 +20,22 @@ export async function POST(request: Request) {
 
   if (typeof longUrl !== "string" || !longUrl.startsWith("http")) {
     return NextResponse.json({ error: "Please enter a valid URL starting with http(s)" }, { status: 400 });
+  }
+
+  const isPro = userData.user.user_metadata?.is_pro === true;
+
+  if (!isPro) {
+    const { count } = await supabase
+      .from("links")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userData.user.id);
+
+    if ((count ?? 0) >= FREE_TIER_LINK_LIMIT) {
+      return NextResponse.json(
+        { error: `Free plan is limited to ${FREE_TIER_LINK_LIMIT} links. Upgrade to Pro for unlimited links.` },
+        { status: 403 }
+      );
+    }
   }
 
   // Try a few times in case of a (rare) short-code collision.
